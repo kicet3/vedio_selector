@@ -40,7 +40,6 @@ final class AppModel: ObservableObject {
     @Published var focusedPhotoID: UUID?
     @Published var captureFormat: CaptureFormat = .png
     @Published var showAllFrames = false
-    @Published var framePage = 0
     @Published var search = ""
     @Published var thumbnailSize = 190.0
     let disk: LibraryDisk
@@ -54,7 +53,6 @@ final class AppModel: ObservableObject {
     private var batchTask: Task<Void, Never>?
     private var scopedURLs: [URL] = []
     private let sharing = AirDropCoordinator()
-    let framesPerPage = 120
 
     init(root: URL? = nil) {
         let standardRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -65,7 +63,6 @@ final class AppModel: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self, self.isPlaying, let index = self.videoIndex else { return }
                 self.frameNumber = index.frame(at: time.seconds)
-                self.framePage = self.frameNumber / self.framesPerPage
                 if self.player.rate == 0 && time.seconds >= index.duration - 0.1 { self.pause() }
             }
         }
@@ -115,12 +112,6 @@ final class AppModel: ObservableObject {
     }
     var currentCapture: PhotoRecord? {
         library.photos.first { $0.videoID == selectedVideoID && $0.frameNumber == frameNumber && ($0.captureQuarterTurns ?? 0) == videoRotation && $0.editedFromID == nil }
-    }
-    var totalFramePages: Int { max(1, ((videoIndex?.frames.count ?? 0) + framesPerPage - 1) / framesPerPage) }
-    var pagedFrames: Range<Int> {
-        let total = videoIndex?.frames.count ?? 0
-        let start = min(framePage * framesPerPage, total)
-        return start..<min(start + framesPerPage, total)
     }
 
     func navigate(to page: LibraryPage) {
@@ -237,7 +228,7 @@ final class AppModel: ObservableObject {
     func openVideo(_ video: VideoRecord) {
         indexTask?.cancel(); pause()
         player.replaceCurrentItem(with: nil)
-        selectedVideoID = video.id; videoIndex = nil; frameNumber = 0; framePage = 0
+        selectedVideoID = video.id; videoIndex = nil; frameNumber = 0
         videoRotation = video.quarterTurns ?? 0
         thumbnailRenderer = nil; fullRenderer = nil
         page = .video; focusedPhotoID = nil; comparisonPhotoIDs = []; selectedFolderID = nil; favoritesOnly = false; selectedPhotos.removeAll(); search = ""; isIndexing = true; indexProgress = 0
@@ -272,7 +263,6 @@ final class AppModel: ObservableObject {
     func selectFrame(_ number: Int) {
         guard let index = videoIndex else { return }
         pause(); frameNumber = max(0, min(number, index.frames.count - 1))
-        framePage = frameNumber / framesPerPage
     }
     func step(_ offset: Int) { selectFrame(frameNumber + offset) }
     func rotateVideo(_ amount: Int) {
@@ -283,7 +273,7 @@ final class AppModel: ObservableObject {
     func pause() { player.pause(); isPlaying = false }
     func togglePlayback() {
         guard let index = videoIndex else { return }
-        if isPlaying { pause(); framePage = frameNumber / framesPerPage }
+        if isPlaying { pause() }
         else {
             if frameNumber == index.frames.count - 1 { frameNumber = 0 }
             player.seek(to: index.frames[frameNumber].time, toleranceBefore: .zero, toleranceAfter: .zero)

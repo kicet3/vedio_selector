@@ -88,31 +88,13 @@ struct VideoWorkspace: View {
                 HStack {
                     Text("총 \(index.frames.count.formatted())프레임").font(.system(size: 10)).foregroundStyle(.secondary)
                     Spacer()
-                    IconButton(symbol: "chevron.left", label: "이전 프레임 페이지") { model.pause(); model.framePage -= 1 }.disabled(model.framePage == 0)
-                    Text("\(model.framePage + 1)/\(model.totalFramePages)").font(.system(size: 10)).monospacedDigit()
-                    IconButton(symbol: "chevron.right", label: "다음 프레임 페이지") { model.pause(); model.framePage += 1 }.disabled(model.framePage + 1 >= model.totalFramePages)
                 }
             }.padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 6)
             Divider()
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    VStack(spacing: 10) {
-                        let columns = model.showAllFrames ? 2 : 1
-                        ForEach(Array(stride(from: model.pagedFrames.lowerBound, to: model.pagedFrames.upperBound, by: columns)), id: \.self) { first in
-                            HStack(spacing: 8) {
-                                ForEach(first..<min(first + columns, model.pagedFrames.upperBound), id: \.self) { number in
-                                    frameTile(index, number: number).frame(maxWidth: .infinity).frame(height: model.showAllFrames ? 92 : 148).id(number)
-                                }
-                            }
-                        }
-                    }.frame(maxWidth: .infinity).padding(10)
-                }
-                .onChange(of: model.frameNumber) { _, value in proxy.scrollTo(value, anchor: .center) }
-                .onChange(of: model.framePage) { _, _ in
-                    let target = model.pagedFrames.contains(model.frameNumber) ? model.frameNumber : model.pagedFrames.lowerBound
-                    proxy.scrollTo(target, anchor: .top)
-                }
-            }
+            ContinuousMediaList(data: 0..<index.frames.count, id: \.self, selectedID: model.frameNumber,
+                                columns: model.showAllFrames ? 2 : 1) { number in
+                frameTile(index, number: number).frame(height: model.showAllFrames ? 92 : 148)
+            }.id(model.selectedVideoID)
             Divider()
             VStack(spacing: 8) {
                 HStack {

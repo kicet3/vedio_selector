@@ -5,10 +5,6 @@ struct InlinePhotoViewer: View {
     @EnvironmentObject var model: AppModel
     let photo: PhotoRecord
     @StateObject private var zoom = ImageZoom()
-    @State private var listPage = 0
-    private let pageSize = 120
-    private var pageCount: Int { max(1, (model.visiblePhotos.count + pageSize - 1) / pageSize) }
-    private var pagePhotos: [PhotoRecord] { Array(model.visiblePhotos.dropFirst(listPage * pageSize).prefix(pageSize)) }
     var body: some View {
         HSplitView {
             ZoomableAsyncImage(identity: photo.imageIdentity, zoom: zoom) {
@@ -27,8 +23,6 @@ struct InlinePhotoViewer: View {
             .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             photoSidebar.frame(minWidth: 244, idealWidth: 278, maxWidth: 340, maxHeight: .infinity)
         }
-        .onAppear { listPage = model.focusedPhotoPosition / pageSize }
-        .onChange(of: photo.id) { _, _ in listPage = model.focusedPhotoPosition / pageSize }
     }
 
     private var photoSidebar: some View {
@@ -54,25 +48,10 @@ struct InlinePhotoViewer: View {
                         }.buttonStyle(.plain)
                     }
                 }
-                if pageCount > 1 {
-                    HStack {
-                        IconButton(symbol: "chevron.left", label: "이전 사진 페이지") { listPage -= 1 }.disabled(listPage == 0)
-                        Spacer()
-                        Text("\(listPage + 1) / \(pageCount)").font(.system(size: 10)).monospacedDigit()
-                        Spacer()
-                        IconButton(symbol: "chevron.right", label: "다음 사진 페이지") { listPage += 1 }.disabled(listPage + 1 >= pageCount)
-                    }
-                }
             }.padding(12)
             Divider()
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    VStack(spacing: 15) {
-                        ForEach(pagePhotos) { photo in PhotoTile(photo: photo, inSidebar: true).id(photo.id) }
-                    }.frame(maxWidth: .infinity).padding(10)
-                }
-                .onChange(of: photo.id) { _, id in proxy.scrollTo(id, anchor: .center) }
-                .onChange(of: listPage) { _, _ in if let first = pagePhotos.first { proxy.scrollTo(first.id, anchor: .top) } }
+            ContinuousMediaList(data: model.visiblePhotos, id: \.id, selectedID: photo.id, spacing: 15) { photo in
+                PhotoTile(photo: photo, inSidebar: true)
             }
             Divider()
             VStack(spacing: 9) {

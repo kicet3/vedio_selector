@@ -71,6 +71,7 @@ struct AsyncMediaImage: View {
                 image = result
             } catch is CancellationError {} catch { if !Task.isCancelled { failure = error.localizedDescription } }
         }
+        .onDisappear { image = nil; failure = nil }
     }
 }
 
